@@ -1,14 +1,5 @@
 const path = require('path');
-const {
-  readdir,
-  mkdir,
-  copyFile,
-  rm,
-  writeFile,
-  appendFile,
-  readFile,
-} = require('fs/promises');
-const { access, createWriteStream } = require('fs');
+const { readdir, writeFile, appendFile, readFile } = require('fs/promises');
 const { exit } = require('process');
 
 const setErr = (err) => {
