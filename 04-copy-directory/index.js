@@ -11,7 +11,7 @@ const setErr = (err) => {
 const isNotSideEffectCheck = (dirname) =>
   argv[1].split('\\').at(-1).length === dirname.split('\\').at(-1).length;
 
-const copyFiles = (files, newDirAddr) => {
+const copyFiles = (files, newDirAddr, isCopingDirs) => {
   mkdir(newDirAddr, { recursive: true }).then(() => {
     files.forEach((file) => {
       if (file.isFile()) {
@@ -19,6 +19,11 @@ const copyFiles = (files, newDirAddr) => {
         copyFile(
           path.join(file.path, fileName),
           path.join(newDirAddr, fileName),
+        );
+      } else if (isCopingDirs) {
+        copyDir(
+          path.join(file.path, file.name),
+          path.join(newDirAddr, file.name),
         );
       }
     });
@@ -30,8 +35,14 @@ const delFiles = async (files, newDirAddr) => {
     if (!files.length) return null;
 
     const dataFileName = files[0].name;
-    const isRemoved = await rm(path.join(newDirAddr, dataFileName));
-    if (isRemoved === undefined) return delFiles(files.slice(1), newDirAddr);
+    const isFiles = files[0].isFile();
+    if (isFiles) {
+      const isRemoved = await rm(path.join(newDirAddr, dataFileName));
+      if (isRemoved === undefined) return delFiles(files.slice(1), newDirAddr);
+    } else {
+      return delFiles(files.slice(1), files[0].path);
+    }
+
     throw new Error(
       `Something wrong with ${path.join(files[0].path, dataFileName)}`,
     );
@@ -40,7 +51,7 @@ const delFiles = async (files, newDirAddr) => {
   }
 };
 
-const copyDir = (dirAddr, newDirAddr) => {
+const copyDir = (dirAddr, newDirAddr, isCopingDirs) => {
   readdir(dirAddr, { withFileTypes: true })
     .then((files) => {
       if (files && Array.isArray(files)) {
@@ -53,9 +64,9 @@ const copyDir = (dirAddr, newDirAddr) => {
                 }
               })
               .then(() => {
-                copyFiles(files, newDirAddr);
+                copyFiles(files, newDirAddr, isCopingDirs);
               });
-          } else copyFiles(files, newDirAddr);
+          } else copyFiles(files, newDirAddr, isCopingDirs);
         });
       } else throw new Error('no data');
     })

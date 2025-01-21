@@ -43,7 +43,7 @@ const buildPage = async () => {
     const newHtmlText = await replaceCompInHtml(template, htmlMatches);
     await writeFile(path.join(buildDirPath, 'index.html'), newHtmlText);
     await concatStyles(stylesDirPath, path.join(buildDirPath, 'styles.css'));
-    await copyDir(assetsDirPath, path.join(buildDirPath, 'assets'));
+    await copyDir(assetsDirPath, path.join(buildDirPath, 'assets'), true);
     console.log('Build is ready!');
   } catch (err) {
     setErr(err);
