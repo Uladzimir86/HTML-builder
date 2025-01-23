@@ -1,14 +1,120 @@
 const path = require('path');
-const { mkdir, writeFile, readFile } = require('fs/promises');
+const {
+  mkdir,
+  writeFile,
+  readFile,
+  readdir,
+  copyFile,
+  rm,
+  appendFile,
+} = require('fs/promises');
+const { exit } = require('process');
+const { access } = require('fs');
 
-const { concatStyles } = require('../05-merge-styles/index');
-const { copyDir, setErr } = require('../04-copy-directory/index');
+const setErr = (err) => {
+  console.log('Error: ', err.message);
+  exit();
+};
 
 const buildDirPath = path.join(__dirname, 'project-dist');
 const componentsDirPath = path.join(__dirname, 'components');
 const assetsDirPath = path.join(__dirname, 'assets');
 const stylesDirPath = path.join(__dirname, 'styles');
 const templatePath = path.join(__dirname, 'template.html');
+
+const copyFiles = (files, newDirAddr, isCopingDirs) => {
+  mkdir(newDirAddr, { recursive: true }).then(() => {
+    files.forEach((file) => {
+      if (file.isFile()) {
+        const fileName = file.name;
+        copyFile(
+          path.join(file.path, fileName),
+          path.join(newDirAddr, fileName),
+        );
+      } else if (isCopingDirs) {
+        copyDir(
+          path.join(file.path, file.name),
+          path.join(newDirAddr, file.name),
+        );
+      }
+    });
+  });
+};
+const delFiles = async (files, newDirAddr) => {
+  try {
+    if (!files.length) return null;
+
+    const dataFileName = files[0].name;
+    const isFiles = files[0].isFile();
+    if (isFiles) {
+      const isRemoved = await rm(path.join(newDirAddr, dataFileName));
+      if (isRemoved === undefined) return delFiles(files.slice(1), newDirAddr);
+    } else {
+      return delFiles(files.slice(1), files[0].path);
+    }
+
+    throw new Error(
+      `Something wrong with ${path.join(files[0].path, dataFileName)}`,
+    );
+  } catch (err) {
+    setErr(err);
+  }
+};
+const copyDir = (dirAddr, newDirAddr, isCopingDirs) => {
+  readdir(dirAddr, { withFileTypes: true })
+    .then((files) => {
+      if (files && Array.isArray(files)) {
+        access(newDirAddr, (err) => {
+          if (!err) {
+            readdir(newDirAddr, { withFileTypes: true })
+              .then((data) => {
+                if (data && Array.isArray(data)) {
+                  return delFiles(data, newDirAddr);
+                }
+              })
+              .then(() => {
+                copyFiles(files, newDirAddr, isCopingDirs);
+              });
+          } else copyFiles(files, newDirAddr, isCopingDirs);
+        });
+      } else throw new Error('no data');
+    })
+    .catch((err) => setErr(err));
+};
+
+const appendData = async (arr, bundlePath) => {
+  if (!arr.length) return null;
+  try {
+    const filePath = path.join(arr[0].path, arr[0].name);
+    const data = await readFile(filePath);
+    const isAppendFile = await appendFile(bundlePath, data);
+    if (!isAppendFile) return appendData(arr.slice(1), bundlePath);
+    throw new Error(`Something wrong with ${filePath}`);
+  } catch (err) {
+    setErr(err);
+  }
+};
+
+const concatStyles = async (stylesDirPath, stylesBundlePath) => {
+  try {
+    const files = await readdir(stylesDirPath, { withFileTypes: true });
+    const cssFiles = files.filter(
+      (item) => item.isFile() && path.extname(item.name) === '.css',
+    );
+    if (cssFiles.length) {
+      const bundle = await writeFile(stylesBundlePath, '');
+      if (!bundle) {
+        return appendData(cssFiles, stylesBundlePath).then(() =>
+          console.log(
+            `CSS files from folder  ${stylesDirPath} put in ${stylesBundlePath}`,
+          ),
+        );
+      }
+    }
+  } catch (err) {
+    setErr(err);
+  }
+};
 
 const getCompData = async (match) => {
   try {

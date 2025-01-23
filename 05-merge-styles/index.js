@@ -1,7 +1,11 @@
 const path = require('path');
 const { readdir, writeFile, appendFile, readFile } = require('fs/promises');
+const { exit } = require('process');
 
-const { setErr, isNotSideEffectCheck } = require('../04-copy-directory/index');
+const setErr = (err) => {
+  console.log('Error: ', err.message);
+  exit();
+};
 
 const appendData = async (arr, bundlePath) => {
   if (!arr.length) return null;
@@ -40,7 +44,6 @@ const concatStyles = async (stylesDirPath, stylesBundlePath) => {
 const stylesDirPath = path.join(__dirname, 'styles');
 const stylesBundlePath = path.join(__dirname, 'project-dist', 'bundle.css');
 
-if (isNotSideEffectCheck(__dirname))
-  concatStyles(stylesDirPath, stylesBundlePath);
+concatStyles(stylesDirPath, stylesBundlePath);
 
 module.exports = { concatStyles };
